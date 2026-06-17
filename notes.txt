@@ -1,0 +1,49 @@
+There are many search libraries - Apache Lucene, Elasticsearch, Solr; but these are somewhat heavy - example, to run Elasticsearch, you need to start a Docker container. Hence, for small
+dataset, we will use lightweight in-memory Python search engine called 'minsearch'. The text fields, keyword fields, boosting and filtering implemented in minsearch are ElasticSearch concepts.
+The index tokenizes the text fields and treats keyword fields as exact strings.
+
+Text fields are the fields you search through. When you type a query, the search engine looks at these fields and tokenizes them. It splits text into words, lowercases them, removes stop words, 
+and ranks the results by relevance. So question, section, and answer are text fields.
+
+Keyword fields are for exact matching. Think of a SQL query like SELECT * FROM index WHERE course = 'data-engineering-zoomcamp'. The results must come from the specified course, no matter what 
+ranking or boosting you do for text fields. You use keyword fields to restrict the search space to a particular subset.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Explain filtering and boosting.
+
+search_results = index.search(
+    query=question,
+    boost_dict={'question': 2.0, 'section': 0.5},
+    filter_dict={'course': 'llm-zoomcamp'},
+    num_results=5
+)
+
+Filtering - is a binary yes/no gate; a document either matches the filter or it doesn't. This is done to restrict the search to a specific space. Filtering does not affect relevance scores.
+It has hard-exclusion property which means that the documents outside the search space would never appear in the result, regardless of how relevant they may be. In ElasticSearch, filtering
+improves the search performance as it can cache the results of the filter conditions and reuse them across searches.
+
+Boosting - multiplies the relevance score of a field's match by a given factor, influencing ranking without excluding anything. Not all fields are equally important - example, the 'question' field
+in an faqs dataset is usually more relevant than 'section' for matching. Hence, the query words appearing in the question is a stronger signal than them appearing in the section name. 
+The weightage attached to different fields reflect this importance. All fields have a default boost of 1. Giving 'question' a boost of 2 means it counts two times as much. Similarly, giving 
+'section' 0.5 means it counts half as much, since a match there tells us less.
+
+Say your query is "reset password" and you have two documents:
+    Doc         |                   question field                  |               section field
+    A           |       "How to reset password" (strong match)      |            "General" (no match)
+    B           |              "Account settings" (no match)        |      "Reset Password Section" (strong match)
+
+Score of a doc would be calculated as: (number of query tokens in question field * question_boosting) + (number of query tokens in section field * section_boosting)
+
+Let's take question = 1.0 and section = 1.0 (without boosting)
+Score of Doc A = 2 * 1.0 + 0 * 1.0 = 2
+Score of Doc B = 0 * 1.0 + 2 * 1.0 = 2
+Hence, document A and document B are equally relevant
+
+Let's take question = 2.0 and section = 0.5 (with boosting)
+Score of Doc A = 2 * 2.0 + 0 * 0.5 = 4
+Score of Doc B = 0 * 2.0 + 2 * 0.5 = 1
+Hence, document A is more relevant to answer the query.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
