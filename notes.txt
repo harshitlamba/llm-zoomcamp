@@ -47,3 +47,10 @@ Hence, document A is more relevant to answer the query.
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+A prompt has three parts in an AI system: system instructions, retrieved context and user query. The other optional part is examples (for few-shot prompting). Sometimes, instructions include the output
+constraints and formatting instructions as well. Other times, they are considered as a different part. Instructions (system prompt) tells the LLM how to behave - it never changes and remains 
+same for every request. The user prompt (retrieved context + user query) changes with every request - it carries the actual question and the retrieved context.
+
+The context is a formatted string with all the search results. It's a small preprocessing step, which creates a format that makes it easy for the llm to read.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
