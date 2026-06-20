@@ -141,3 +141,7 @@ assistant: lovely table rendered
 What is the difference between ChatCompletion and Responses API in OpenAI?
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Everytime you are a query with the same instrcutions and prompt, it gives a different result - how to make it deterministic?
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
