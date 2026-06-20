@@ -219,3 +219,7 @@ __marimo__/
 
 # Questions
 questions.txt
+
+# Database
+*.db
+
