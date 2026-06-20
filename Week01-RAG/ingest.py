@@ -1,5 +1,7 @@
 import requests
+import time
 from minsearch import Index
+from sqlitesearch import TextSearchIndex
 
 # fetch and return the documents
 def load_faq_data():
@@ -30,3 +32,22 @@ def build_index(documents):
 
     index.fit(documents)
     return index
+
+# create and return sqlitesearch index for the fetched documents
+def build_index_sqlite(docs_llm):
+    index = TextSearchIndex(
+        text_fields=['question','section','answer'],
+        keyword_fields=['course'],
+        db_path='faq.db'
+    )
+
+    # index.fit(documents)
+    # illustrate a slow ingestion by adding the documents one by one with a small delay
+    for idx, doc in enumerate(docs_llm, start=1):
+        index.add(doc)
+        if idx % 10 == 0:
+            print(f'Added {idx} documents...')
+        time.sleep(0.5)
+    
+    index.close() # close the underlying sql connection and release the resources
+    print('Done. Index saved to faq.db')
