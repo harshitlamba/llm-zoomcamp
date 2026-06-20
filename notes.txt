@@ -142,6 +142,16 @@ What is the difference between ChatCompletion and Responses API in OpenAI?
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-Everytime you are a query with the same instrcutions and prompt, it gives a different result - how to make it deterministic?
+Everytime you are a query with the same instructions and prompt, it gives a different result - how to make it deterministic?
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Minsearch is a lightweight in-memory search library. This means that we have to do document re-indexing everytime we start the notebook or the application as the index isn't persistent. This
+approach is fine for small datasets. However, this process breaks down as the dataset grows. Fetching data takes time - calling APIs, parsing files, cleaning text. With millions of documents, 
+the startup becomes slow. You don't want to wait minutes every time your service restarts. Hence, we separate ingestion from querying. Ingestion process will write the data to a persistent
+search index and another process reads from it. The two processes run independently and only share the index between them. You can use any persistent search backend for this, such as 
+Elasticsearch, OpenSearch, or Qdrant. (a custom made library sqlitesearch has the same API as minsearch and uses SQLite FTS5 (fill text search as the backend))
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
