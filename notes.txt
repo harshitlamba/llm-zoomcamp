@@ -154,4 +154,133 @@ Elasticsearch, OpenSearch, or Qdrant. (a custom made library sqlitesearch has th
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+What is FTS5 in context of full-text search?
 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+What is BM25 in context of full-text search?
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Agentic RAG
+
+In a RAG, the flow is fixed, i.e., search -> build prompt with context -> request to llm. If we use lexical-search and the user's query (exactly) matches the documents, the search finds 
+the right documents and a helpful answer is returned. However, often the search returns nothing useful because:
+1) the user made a typo
+2) the query is asked in an unusual way
+3) the information is needed from two different searches
+In such cases, there is nothing in our pipeline that recovers from a failed search - the search runs and if it returns garbage, LLM gets garbage. 
+Example: If we have this question - "How do I run Ollama locally?" - the search works fine; it finds the relevant documents from faqs and the LLM gives a good answer
+However, if we try something like this - "How do I run Olama locally?" - the word 'Ollama' doesn't match the word 'Olama' in our index because we used lexical search which looks for the
+exact word and finds nothing. This is the limitation of the fixed pipeline. The search runs once with the exact query the user typed, and there's no second chance. The pipeline doesn't know 
+the search failed, so it can't try again with a corrected query.
+
+So, instead of routing the user question straight to search, we can hand control to the LLM and let it drive. The LLM is in charge now can fix typos, search again with different terms, 
+and ask the user a clarifying question. A fixed flow can't do any of this. Once we put the LLM in control, our system becomes agentic, so it's flexible rather than rigid. An agent uses an 
+LLM to decide which actions to take and in which order. Instead of a fixed flow, the LLM chooses what to do at each step. Example:
+
+User: How do I run Olama? -> LLM: I'll search for 'Olama' -> search() - No useful results -> LLM: Hmm, no results - maybe a typo for 'Ollama' -> search() - Ollama - found results -> LLM: Response
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+In agentic RAG (Retrieval-Augmented Generation), function calling is the mechanism that lets the LLM decide when to invoke external tools instead of relying only on its own knowledge.
+Scenario - What the LLM does without any tool:
+
+messages = [
+  {'role':'user', 'query':'I just discovered the course. Can I join it?'}
+]
+
+response = openai_client.reaponses.create(
+  model='gpt-5.4-mini',
+  input='messages'
+)
+
+The model answers from its general knowledge, something like "it depends on the course" or "check the course website". It doesn't know about our FAQ, so the answer is vague and not helpful.
+This is exactly why we need RAG, and why we want to hand the model a tool.
+
+Define the tool: Define a top-level search function that queries the index directly - the model will reference it by this name (same as the search function we had for RAG)
+Now tell the model about this function. The model doesn't see our Python code, only a schema describing what the function does and what arguments it takes. LLMs are language agnostic. 
+At the end we're just making an HTTP call, so we describe the tool in JSON rather than in Python. The same schema would work from TypeScript or Java.
+
+***Step 1***
+def search(query):
+    boost_dict = {"question": 3.0, "section": 0.5}
+    filter_dict = {"course": "llm-zoomcamp"}
+
+    return index.search(
+        query,
+        num_results=5,
+        boost_dict=boost_dict,
+        filter_dict=filter_dict
+    )
+
+search_tool = {
+    "type": "function",
+    "name": "search",
+    "description": "Search the FAQ database for entries matching the given query.", # most important field as the models reads it to decide when to call the function
+    "parameters": { # parameters is a JSON schema for the arguments 
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Search query text to look up in the course FAQ."
+            }
+        },
+        "required": ["query"], # mark 'query' as required so the model always fill it in
+        "additionalProperties": False
+    }
+}
+
+***Step 2***
+Now, we send the same question as before, but this time we include the tool in the request:
+
+response = openai_client.responses.create(
+    model="gpt-5.4-mini",
+    input=messages,
+    tools=[search_tool],
+)
+
+response.output
+
+***Step 3***
+Instead of a message with the answer, the response contains a function_call entry. The model decided it needs to search the FAQ before answering. Rather than reply, it asked us 
+to run the search function first. Look at the arguments too. The model didn't pass our question verbatim. It judged the raw question wasn't the best query to search with. 
+So it rewrote our question into search keywords like "enroll late join course".
+
+The function call contains JSON arguments. We parse them, call our search function, and serialize the result.
+
+import json
+
+call = response.output[0]
+args = json.loads(call.arguments)
+
+results = search(**args)
+result_json = json.dumps(results, indent=2)
+
+***Step 4***
+Now we send this result back to the model. First, we add the model's output to the conversation history - the model needs to see its own function call. Then we add the tool result.
+
+messages.extend(response.output) # model sees its own function call
+
+messages.append({
+    "type": "function_call_output",
+    # call_id links the tool result to the specific function call the model requested; if the model makes multiple function calls in one turn, each one gets its own call_id
+    "call_id": call.call_id,
+    "output": result_json,
+})
+
+***Step 5***
+We call the API a second time with the expanded history:
+
+response = openai_client.responses.create(
+    model="gpt-5.4-mini",
+    input=messages,
+    tools=[search_tool],
+)
+
+response.output_text
+
+This time the model has the original question, its own decision to call search, and the FAQ results. It can now produce a proper course-specific answer. We have to send the 
+whole history because LLMs are stateless between API calls. The memory is the list you send as input. If you send only the tool result, the model has no idea what's going on. 
+So on this second call we replay everything we have so far. That means the question, the decision to call search, and the result we got back. That's the full function-calling 
+loop for a single turn. With plain RAG we made one call, and here we make two. Turning RAG agentic means more round-trips.
