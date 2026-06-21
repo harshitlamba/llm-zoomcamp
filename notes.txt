@@ -187,12 +187,12 @@ In agentic RAG (Retrieval-Augmented Generation), function calling is the mechani
 Scenario - What the LLM does without any tool:
 
 messages = [
-  {'role':'user', 'query':'I just discovered the course. Can I join it?'}
+  {'role':'user', 'content':'I just discovered the course. Can I join it?'}
 ]
 
-response = openai_client.reaponses.create(
+response = openai_client.responses.create(
   model='gpt-5.4-mini',
-  input='messages'
+  input=messages
 )
 
 The model answers from its general knowledge, something like "it depends on the course" or "check the course website". It doesn't know about our FAQ, so the answer is vague and not helpful.
@@ -284,3 +284,6 @@ This time the model has the original question, its own decision to call search, 
 whole history because LLMs are stateless between API calls. The memory is the list you send as input. If you send only the tool result, the model has no idea what's going on. 
 So on this second call we replay everything we have so far. That means the question, the decision to call search, and the result we got back. That's the full function-calling 
 loop for a single turn. With plain RAG we made one call, and here we make two. Turning RAG agentic means more round-trips.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
