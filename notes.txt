@@ -287,3 +287,47 @@ loop for a single turn. With plain RAG we made one call, and here we make two. T
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+Vector Search
+
+The keyword search (text search or lexical search) matches the exact works. Example, if you search for "Docker", the document has to contain "Docker" to be fetched and returned.
+But look at these two questions:
+a) "Can I still join the course after the start date?"
+b) "Is it possible to enroll late?"
+They mean the same thing, yet they share almost no words. A keyword search engine struggles to match them. We need something that works on semantic meaning, not on the exact words.
+That something is vector search. Instead of matching words, it matches ideas.
+
+We run vector search in two stages.
+1) Offline (indexing): we convert all documents into vectors and store them in an index.
+2) Online (querying): we convert the user's query into a vector with the same model, then find the closest document vectors by similarity.
+
+An embedding model produces these vectors. It's a neural network trained to capture meaning, so texts that mean similar things land on similar vectors. We measure how close two 
+vectors are with a distance metric. The most common one is cosine similarity. Cosine similarity measures the angle between two vectors:
+a) Vectors pointing in the same direction: similarity close to 1 (similar)
+b) Vectors at right angles (orthogonal): similarity close to 0 (unrelated)
+c) Vectors pointing in opposite directions: similarity close to -1 (opposite meaning)
+
+The larger the cosine similarity, the more similar the two texts are in meaning. Because our vectors are normalized, the dot product gives us cosine similarity directly. 
+This is why we can use dot product to compare texts. In practice, we rarely get cosine similarity below 0. The embedding model maps text to a region of the vector space where most 
+vectors have positive components. There's no concept of "opposite meaning" that maps to a vector pointing the other way.
+
+Differences between keyword search and vector search:
+a) Keyword search matches exact words; Vector search matches meaning
+b) Keyword search suits specific terms, IDs, and names; Vector search suits paraphrased questions and natural language
+c) Keyword search uses an inverted index (BM25, TF-IDF); Vector search uses a vector index based on cosine similarity.
+d) Keyword search misses synonyms and paraphrases; Vector search misses exact term matches.
+
+Vector search is usually better, but it adds a lot of operational complexity. A good idea is to start with keyword search and reach for vector search once you can show they are
+woth the extra cost (or if you have a GPU!. In practice, the two work best together. Hybrid search combins them and usually is considered a best practice.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+The embedding model learns to place words as points in a multi-dimensional space - each dimension represents a concept the model learned. Words with similar meanings land close to each 
+other (Word2Vec). The same idea works for entire sentences. Example:
+Q1: "I just discovered the course. Can I still join it?"
+Q2: "I just found out about the program. Can I still enroll?" - The vectors for Q1 and Q2 are close as they mean the same thing.
+Q3: "How do I run Docker on Windows?" - This one is far away from Q1 and Q2.
+
+Each of the documents in our dataset becomes a point in this space. An embedding model takes text in and returns a fixed-length array of numbers. When a user asks a question, we embed the 
+query into the same space and find the closest documents (nearest documents) which become our search results. Since the model encodes the whole sentence, not the words in isolation. 
+So it can tell apart the same word in different contexts. Example: "Apple is a great company" and "An apple a day keeps the doctor away" both contain the word "apple". However, 
+the surrounding context changes the enbedding.
