@@ -331,3 +331,19 @@ Each of the documents in our dataset becomes a point in this space. An embedding
 query into the same space and find the closest documents (nearest documents) which become our search results. Since the model encodes the whole sentence, not the words in isolation. 
 So it can tell apart the same word in different contexts. Example: "Apple is a great company" and "An apple a day keeps the doctor away" both contain the word "apple". However, 
 the surrounding context changes the enbedding.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Why is it a good idea to send the documents to the embedding model in batches and not all at once?
+
+Even though the number of documents will remian the same in both the scenarios, how the documents are sent to the embedding model affects performance and usability.
+If there were no API limits, no timeouts, and no memory constraints, sending all 1,200 at once might even be slightly faster because you avoid the overhead of making 12 separate requests.
+1) Large requests take longer to process and you don't get intermediate results (no progress tracking) - a single request with say 1200 documents (payload) would required to be received, 
+validated, tokenized and processed entirely before returning a response; with smaller batches, you start getting results after the first batch completes
+2) Failures are more costly - if one huge requests times out or encounters an error, we may have to redo all 1200 embeddings; with batching, it batch 7 fails, you only rerun that batch
+3) API limits - embedding model APIs usually have limits on request size or the total number of requests per minute; splitting into batches help stay within those limits
+4) Parallelization - batching can be parallelized which can significantly reduce the overall time
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
