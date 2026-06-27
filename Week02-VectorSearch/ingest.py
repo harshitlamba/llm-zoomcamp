@@ -1,6 +1,5 @@
 import requests
-from minsearch import Index
-
+from minsearch import Index, VectorSearch
 
 def load_faq_data():
     docs_url = 'https://datatalks.club/faq/json/courses.json'
@@ -31,3 +30,8 @@ def build_index(documents):
     )
     index.fit(documents)
     return index
+
+def build_vector_index(X, documents):
+    vindex = VectorSearch(keyword_fields=['course'])
+    vindex.fit(vectors=X, payload=documents)
+    return vindex
