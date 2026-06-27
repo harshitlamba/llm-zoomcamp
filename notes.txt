@@ -346,4 +346,24 @@ validated, tokenized and processed entirely before returning a response; with sm
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+In-memory lightweight search engines such as minsearch for vector search have three problems:
+1) they rebuild the index on every startup
+2) they keep everything in memory
+3) they searche by brute force
+With text search we never felt these. Indexing was fast because we didn't embed anything. With vector search, indexing runs a neural network over every document, so it takes a minute on 
+our dataset. We don't want a user waiting that long when the app starts up. We pay that cost once during ingestion, and the query side starts up instantly. Keeping everything in memory is 
+fine here, but a larger dataset would need too much space. The third problem is brute-force search. For every query we compare the query vector against every single document. With 1,000 
+documents this is fine, probably even faster than anything smarter. But as the dataset grows past 10,000 or so, it gets slow, and we'll want an approximate method instead.
+
+Approximate Nearest Neighbor
+
+Nearest neighbor search computes the similarity of the query vector with each of the document vectors - this works well for a small number of documents, but it doesn't scale well.
+ANN compares the query vector against the vectors in the regions of vector space that are most likely to contain good macthes, achieving dramatic speed improvements while sacrificing 
+only a small amount of accuracy. To do this, ANN use data structures (trees, graphs etc.) and algorithms such as HNSW (Hierarchical Navigable Small World), IVF (Inverted File Index),
+LSH (Locality Sensitive Hashing).
+
+a) LSH: up to 100K vectors, random hyperplane projections
+b) IVF: 10K-500K vectors, K-means clustering
+c) HNSW: 10K-1M+ vectors, proximity graph (highest recall)
+For a small dataset, lsh is fine. All modes use two-phase search: approximate candidate retrieval, then exact cosine similarity reranking.
 
