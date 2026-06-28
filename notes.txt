@@ -367,3 +367,50 @@ b) IVF: 10K-500K vectors, K-means clustering
 c) HNSW: 10K-1M+ vectors, proximity graph (highest recall)
 For a small dataset, lsh is fine. All modes use two-phase search: approximate candidate retrieval, then exact cosine similarity reranking.
 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+PostgreSQL has a core set of features, but you can install extensions that add new capabilities. Example:
+a) pgvector → vector embeddings and similarity search
+b) postgis → geographic data and spatial queries
+c) pg_trgm → fuzzy string matching
+
+pgvector is the PostgreSQL extension that adds support for storing vectors (embeddings) and searching them by similarity. On top of that you get the usual production features, 
+like concurrent access, transactions, and large datasets. You can combine traditional SQL with vector search. By enabling the pgvector extension, PostgreSQL learns about:
+a) the VECTOR data type
+b) vector distance operators like <->
+c) vector indexing methods
+
+Run Postgres with pgvector container using:
+
+docker run -it \
+    --name pgvector \
+    -e POSTGRES_USER=user \
+    -e POSTGRES_PASSWORD=pswd \
+    -e POSTGRES_DB=faq \
+    -v pgvector_data:/var/lib/postgresql/data \
+    -p 5432:5432 \
+    pgvector/pgvector:pg17
+
+pgvector(repo)/pgvector(image name):pg17(tag) image has the pgvector extension pre-installed. '-v' flag creates a named volume so data persists across container restarts
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Does pgvector support only cosine similarity?
+
+No. pgvector supports multiple distance metrics. The metric depends on which operator you use in your SQL query (and, if you're using an index, which operator class you created the 
+index with). The most common ones:
+a) <->	- euclidean (l2) distance - straight-line distance between vectors
+b) <=>	- cosine distance - based on the angle between vectors
+c) <#>	- negative inner product - used for maximum dot-product similarity
+d) <+>	- manhattan (l1) distance - sum of absolute differences (supported in newer versions)
+
+Different distance metrics require different index structures. Hence, the operator class to be mentioned while creating the index depend on the distance metric.
+a) vector_cosine_ops - cosine distance (<=>)
+b) vector_l2_ops - Euclidean distance (<->)
+c) vector_ip_ops - inner product (<#>)
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Difference between cosine similarity and cosine distance? Difference between cosine similarity and negative inner product?
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
