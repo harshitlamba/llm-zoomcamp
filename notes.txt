@@ -414,3 +414,27 @@ c) vector_ip_ops - inner product (<#>)
 Difference between cosine similarity and cosine distance? Difference between cosine similarity and negative inner product?
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Why do we need AI in workflows?
+
+We can use AI to generate the workflows as well as inside the workflows to make the decisions. We usually spend a lot of time in building boilerplate for LLM applications - this is
+something the AI is really good at doing for you. In addition, AI can also help in searching the documentation and trying to find right bit of information, especially when the websites and
+documentations are optimizing themselves for LLMs to digest this information better. Example, Kestra has optimized its documentation by providing a full raw markdown (.md) which is much
+easier for an LLM to digest than a static webpage.
+
+AI tools can help in generating workflows. Example, with the help of built-in Kestra copilot, which knows the Kestra documentation, has the context and knows the schema for 
+building a workflow, we can build sophisticated workflows without us having to build it ourselves. AI also helps us avoid errors, get the syntax correct, get updated code and follow best 
+practices.
+
+AI inside of the workflows can help automate the complex decisions - we can have a workflow which is very deterministic, but you can also include non-deterministic steps such as including a
+custom JSON body everytime the flow runs - you have to make AI look the messy data and make a decision for you in the cases where the schema, information etc. might change.
+We can place RAG inside our workflows to ensure the AI steps inside these workflows provides accurate contextual information.
+
+AI can accelerate workflow development and enable autonomous task automation through three techniques: AI Copilot for generating flows, RAG for grounding responses in real data, 
+and AI Agents for autonomous task execution.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+What is Context Engineering?
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
