@@ -438,3 +438,87 @@ and AI Agents for autonomous task execution.
 What is Context Engineering?
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+How to use .env file to store and export environment variables in container running Kestra?
+
+Since Docker Compose reads .env as plain key=value pairs only and we need base64 encoded values for Kestra, we need to pre-compute the base64 values ourselves, and then store everything as 
+static text. Generate the base64 values once in your terminal using:
+
+echo -n "your-api-key-here" | base64
+
+The SECRET_ keys are to be base64 encoded, while the any key not preceded by SECRET_ should be copied as it is.
+
+a) Variable interpolation (happens on your host machine, before anything runs) - this is about substituting text inside docker-compose.yml itself, before Compose even builds the final 
+configuration. Compose reads your .env file purely to find-and-replace ${VARIABLE} placeholders anywhere in the YAML — image tags, ports, volume paths, build args, environment values, 
+literally any string field. Example:
+# docker-compose.yml
+services:
+  kestra:
+    image: kestra/kestra:${KESTRA_VERSION}
+    ports:
+      - "${HOST_PORT}:8080"
+# .env
+KESTRA_VERSION=latest
+HOST_PORT=8081
+
+Before the container even starts, Compose rewrites this in memory as:
+services:
+  kestra:
+    image: kestra/kestra:latest
+    ports:
+      - "8081:8080"
+
+Interpolation resolves ${SECRET_GEMINI_API_KEY} on the host side first (reading from .env), producing something like SECRET_GEMINI_API_KEY: eG9.... Then Compose sets that as an actual 
+environment variable inside the container. So interpolation feeds into injection, but they're not the same step. If the .env file isn't found (wrong directory, no symlink, 
+no --env-file flag), any ${VAR} left unresolved just becomes an empty string — no error by default, just silently blank.
+
+b) Container environment injection (happens inside the running container) - this is about what environment variables actually exist when your container's process runs — i.e., what you'd see if you docker exec'd into the container and ran env.
+This is controlled by the environment: or env_file: keys in the compose file. Example:
+# yaml
+services:
+  kestra:
+    environment:
+      SECRET_GEMINI_API_KEY: ${SECRET_GEMINI_API_KEY}
+OR
+# yaml
+services:
+  kestra:
+    env_file:
+      - .env
+
+There's no interpolation involved at all — Compose just reads the env file line by line and loads each KEY=value pair directly into the container's environment. It never touches or rewrites
+your YAML.
+
+When to use injection vs interpolation?
+
+a) Interpolation (${VAR} directly in the YAML) is the right tool when the variable affects something other than a container's environment — things injection can't touch. Use interpolation 
+when you want to parameterize something structural, like the Kestra image version. Example:
+# docker-compose.yml
+services:
+  kestra:
+    image: kestra/kestra:${KESTRA_VERSION}
+
+Here, ${KESTRA_VERSION} gets replaced with, say, "latest" — that's interpolation. But notice: there's no "environment:" block at all. Nothing is being injected into the container's env vars. 
+KESTRA_VERSION is used purely to pick which image to pull. If you docker exec into the container and run env, you will not see KESTRA_VERSION anywhere. Interpolation happened; injection 
+did not.
+
+b) For the environment variables that are meant to be read by the Kestra process inside the container — not used to configure image versions, ports, or volume paths — injection is the correct 
+and sufficient mechanism. Example:
+# yaml
+services:
+  kestra:
+    env_file:
+      - .env
+Here, Compose does not scan for ${...} patterns in this block at all. It just opens ".env", reads every KEY=value line, and loads them straight into the container's environment — a raw file 
+copy into env vars. If you "docker exec" in and run "env", you'll see SECRET_GEMINI_API_KEY=eG9..., etc. Injection happened; interpolation (the ${} substitution mechanism) was never invoked.
+
+Scenario where both interpolation and injection happening together:
+# yaml
+environment:
+  SECRET_GEMINI_API_KEY: ${SECRET_GEMINI_API_KEY}
+Here, the two jobs, one after the other:
+1) Compose sees ${SECRET_GEMINI_API_KEY} → interpolation kicks in → replaces it with the value from .env, e.g. eG9...
+2) Now the line effectively reads SECRET_GEMINI_API_KEY: eG9... → Compose takes this resolved environment: entry → injection kicks in → sets it as the container's env var
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
