@@ -225,3 +225,6 @@ questions.txt
 *.db-shm
 *.db-wal
 
+# GCP SA Key
+llm-zoomcamp-gcp-sa.json
+
