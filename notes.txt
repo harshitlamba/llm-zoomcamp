@@ -545,3 +545,38 @@ done. You're just closing the gap between a general solution and your exact requ
 Web research Agent YAML file
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+RAG working in Kestra
+
+RAG has two phases - ingestion on a cadence and query on demand.
+
+Ingest ["Ingest (run once / on schedule)"]
+  A[Fetch Docs] --> B[Create Embeddings] --> C[Store in KV Store]
+
+Query ["Query (run on demand)"]
+  D[User Question] --> E[Find Similar Content in KV Store] --> F[Add Context to Prompt] --> G[LLM Answer]
+
+Ingest phase (run once, or on a schedule when your data changes):
+1) Fetch documents: load documentation, release notes, or other data sources
+2) Create embeddings: convert text into vectors using an embedding model
+3) Store embeddings: save vectors in Kestra's KV Store. The flows store embeddings in Kestra's KV Store for simplicity. This is convenient for learning and small-scale demos, but it is not 
+a replacement for a proper vector database. For any serious workload, e.g. larger document sets, low-latency retrieval, or production use, you should use a dedicated vector store.
+
+Query phase (runs every time a question is asked):
+1) Retrieve context: find the embeddings most similar to the user's question
+2) Augment the prompt: add the retrieved content to the LLM prompt
+3) Generate response: the LLM answers using real, grounded context
+
+In addition to use static RAG where documents are ingested once and stored in the KV store, Kestra also supports web search as a retriever, which fetches live results at query time and 
+passes them as context to the LLM using Tavily web search API. The TavilyWebSearch retriever queries Tavily and injects the results as context before the LLM generates a response — 
+no ingestion step required. However, the results are only as good as the search engine, and may not be relevant or accurate. Always test the quality of retrieved context when using web 
+search RAG.
+
+	                              Static RAG	                                                Web Search RAG
+Data source	                Documents you ingested	                                       Live web results
+Best for	         Internal docs, policies, fixed knowledge bases	       Time-sensitive or frequently changing information
+Ingestion step	                Required	                                                  Not required
+Example question	  "What does our refund policy say?"	                         "What is the latest release of Kestra?"
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
