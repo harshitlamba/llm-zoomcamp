@@ -1,0 +1,46 @@
+id: nyc-taxi-data-pipeline
+namespace: dev.data
+description: "Loads NYC taxi data from a CSV file to BigQuery via GCS."
+
+inputs:
+  - id: gcsBucketName
+    type: STRING
+    description: "The name of the GCS bucket"
+    defaults: "llm-zoomcamp-data"
+  - id: gcpProjectName
+    type: STRING
+    description: "The ID of the GCP project"
+    defaults: "llm-zoomcamp-501301"
+  - id: bigqueryDatasetName
+    type: STRING
+    description: "The name of the BigQuery dataset"
+    defaults: "ny_taxi"
+  - id: dataUri
+    type: STRING
+    description: "The uri of the data source"
+    defaults: "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2025-01.parquet"
+
+tasks:
+  - id: download_nyc_taxi
+    type: io.kestra.plugin.core.http.Download
+    uri: "{{ inputs.dataUri }}" # Yellow taxi data for January 2025
+    saveAs: "{{ inputs.dataUri | split('/') | last }}"
+
+  - id: upload_to_gcs
+    type: io.kestra.plugin.gcp.gcs.Upload
+    projectId: "{{ inputs.gcpProjectName }}"
+    serviceAccount: "{{ secret('GCP_SA_KEY') }}" # Using environment variable for service account
+    from: "{{ outputs.download_nyc_taxi.uri }}"
+    to: "gs://{{ inputs.gcsBucketName }}/nyc_taxi_data/{{ outputs.download_nyc_taxi.uri | split('/') | last }}"
+
+  - id: load_to_bigquery
+    type: io.kestra.plugin.gcp.bigquery.LoadFromGcs
+    projectId: "{{ inputs.gcpProjectName }}"
+    serviceAccount: "{{ secret('GCP_SA_KEY') }}" # Using environment variable for service account
+    from:
+      - "{{ outputs.upload_to_gcs.uri }}"
+    destinationTable: "{{ inputs.gcpProjectName }}.{{ inputs.bigqueryDatasetName }}.nyc_taxi_data_202501"
+    format: PARQUET
+    autodetect: true # Automatically detect schema and options for PARQUET
+    createDisposition: CREATE_IF_NEEDED # Create table if it doesn't exist
+    writeDisposition: WRITE_TRUNCATE # Overwrite the table if it exists
