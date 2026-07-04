@@ -542,7 +542,7 @@ done. You're just closing the gap between a general solution and your exact requ
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-Web research Agent YAML file
+Web research Agent YAML file and multi-agent YAML file
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -579,4 +579,154 @@ Ingestion step	                Required	                                        
 Example question	  "What does our refund policy say?"	                         "What is the latest release of Kestra?"
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+In Kestra, the AIAgent plugin handles the agentic loop for you (a loop that calls the LLM, executes any tool calls it returned, send the results back, and stops when the model produced a 
+final answer with no more tool calls). You define the goal, the tools, and optionally a system message - Kestra drives the loop, manages conversation history, and surfaces the result as a 
+task output.
+
+Traditional Workflow — fixed sequence, predetermined logic - use traditional workflows when steps are deterministic and repeatable, compliance requires exact auditable processes, or cost 
+and latency must be minimized.
+
+tasks:
+  - id: step1
+    type: Task1
+  - id: step2
+    type: Task2
+  - id: step3
+    type: Task3
+
+AI Agent Workflow — agent decides what to do, in what order, based on the goal - use AI Agents when the exact sequence of steps isn't known in advance, decisions depend on dynamic changing 
+information, or you need to adapt to unexpected conditions.
+
+tasks:
+  - id: agent
+    type: io.kestra.plugin.ai.agent.AIAgent
+    prompt: "Research data engineering trends and create a report"
+    tools:
+      - WebSearch
+      - TaskExecution
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Anatomy of an AI agent:
+
+# every flow needs two identifiers - id (name of the flow) and namespace - together they uniquely identify a Kestra flow
+id: example_agent
+namespace: zoomcamp
+
+tasks:
+  - id: agent # the flow has one task called 'agent'
+    type: io.kestra.plugin.ai.agent.AIAgent # the task uses Kestra's AIAgent plugin task type; this is a higher-level abstraction than a plain "call an LLM" task — it's built to support 
+    # tool use, memory, and multi-step reasoning (an "agent loop"), not just a single prompt/response exchange
+
+    # Defines the agent's role and behavior
+    systemMessage: |
+      You are a data analyst. Analyze data and provide insights. # set agent's persona and instructions; this is a system-level context which shapes how the model should behave for the
+      # whole interaction
+
+    # The actual task or question
+    prompt: "What are the top 3 trends in this data?"
+
+    # LLM provider configuration
+    provider:
+      type: io.kestra.plugin.ai.provider.GoogleGemini
+      modelName: gemini-2.5-flash
+      apiKey: "{{ secret('GEMINI_API_KEY') }}" # pull the API key at runtime from Kestra's secrets manager; standard Kestra templating syntax for injecting secrets securely 
+
+    # Tools the agent can use - this is what makes it an "agent" rather than a plain LLM call — the model can decide, during its reasoning, to invoke this tool to fetch live 
+    # information from the web (e.g., to check context or trends) rather than relying only on its training data
+    tools:
+      - type: io.kestra.plugin.ai.tool.TavilyWebSearch # gives the agent access to a web search tool
+        apiKey: "{{ secret('TAVILY_API_KEY') }}"
+
+    # Memory for context across executions - this is to let the conversation history/context persist across separate executions of this flow — so if you run this flow again 
+    # later, the agent can recall prior interactions tied to that same memoryId, rather than starting fresh each time. This is useful for building a "stateful" assistant 
+    # across multiple runs rather than a one-shot Q&A
+    memory:
+      type: io.kestra.plugin.ai.memory.KestraKVStore # configures persistent memory using Kestra's key-value store, keyed by analyst_001
+      memoryId: analyst_001
+
+When this flow executes, Kestra will:
+a) Load prior memory (if any) associated with analyst_001.
+b) Send the system message + prompt to Gemini 2.5 Flash.
+c) Let the model decide whether it needs to call the Tavily web search tool to gather more information.
+d) Return a final answer (ideally "top 3 trends"), and
+e) Save the interaction back into the KV store memory for future runs.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+PluginDefaults Block in Kestra Flow - a flow-level (or namespace-level) configuration that sets default property values for a given plugin/task type — so you don't have to repeat them on 
+every single task that uses it. Example:
+
+# Any task of type io.kestra.plugin.ai.agent.AIAgent in this flow should automatically get this provider config, unless the task explicitly overrides it.
+pluginDefaults:
+  - type: io.kestra.plugin.ai.agent.AIAgent
+    values:
+      provider:
+        type: io.kestra.plugin.ai.provider.GoogleGemini
+        modelName: gemini-2.5-flash
+        apiKey: "{{ secret('GEMINI_API_KEY') }}"
+
+So instead of writing this on every single AIAgent task:
+tasks:
+  - id: agent1
+    type: io.kestra.plugin.ai.agent.AIAgent
+    provider:
+      type: io.kestra.plugin.ai.provider.GoogleGemini
+      modelName: gemini-2.5-flash
+      apiKey: "{{ secret('GEMINI_API_KEY') }}"
+    prompt: "..."
+
+  - id: agent2
+    type: io.kestra.plugin.ai.agent.AIAgent
+    provider:
+      type: io.kestra.plugin.ai.provider.GoogleGemini
+      modelName: gemini-2.5-flash
+      apiKey: "{{ secret('GEMINI_API_KEY') }}"
+    prompt: "..."
+
+You can simplify your tasks by providing a pluginDefault block:
+
+pluginDefaults:
+  - type: io.kestra.plugin.ai.agent.AIAgent
+    values:
+      provider:
+        type: io.kestra.plugin.ai.provider.GoogleGemini
+        modelName: gemini-2.5-flash
+        apiKey: "{{ secret('GEMINI_API_KEY') }}"
+
+tasks:
+  - id: agent1
+    type: io.kestra.plugin.ai.agent.AIAgent
+    prompt: "..."
+  - id: agent2
+    type: io.kestra.plugin.ai.agent.AIAgent
+    prompt: "..."
+
+Both agent1 and agent2 will automatically inherit the same provider block. This is useful because:
+a) DRY (Don't Repeat Yourself): If you have many agent tasks in one flow, you avoid copy-pasting the same provider/model/key config repeatedly.
+b) Single point of change: If you want to switch from gemini-2.5-flash to a different model, or rotate the secret key, you update it in one place instead of hunting through every task.
+c) Overridable per task: If one specific task needs a different model (e.g., a more powerful model for a harder task), it can just declare its own provider block, and that overrides 
+the default for that task only.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+How is a "contentRetriever" block different from "tools" block?
+
+A "content retriever" is used for RAG: before the agent even starts reasoning, Kestra proactively fetches relevant content and injects it into the model's context as background information.
+contentRetrievers:
+  - type: io.kestra.plugin.ai.retriever.TavilyWebSearch
+    apiKey: "{{ secret('TAVILY_API_KEY') }}"
+    maxResults: 10
+The model doesn't "decide" to call this — it's more automatic/pre-fetched context to ground the response. Think of it as: "Before you answer, here's some web content that might be relevant."
+
+A "tool" is an on-demand capability the agent can invoke during its reasoning loop. Example:
+tools:
+  # spins up an MCP server inside a Docker container, and exposes its capabilities as tools the agent can call; MCP is an open protocol for connecting LLMs to external tools/data sources 
+  # in a standardized way
+  - type: io.kestra.plugin.ai.tool.DockerMcpClient
+    image: mcp/filesystem # the Docker image being run is mcp/filesystem, a pre-built MCP server that exposes filesystem operations (read files, list directories, etc.) as callable tools
+    command: ["/tmp"] # passed as the startup command to the container — in this case, it typically specifies which directory the server is allowed to expose/operate on
+    # a Docker volume bind mount, mapping the flow's workingDir (Kestra's working directory for the current execution, where task outputs/files typically live) to /tmp inside the container
+    binds: ["{{workingDir}}:/tmp"]
 
