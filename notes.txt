@@ -746,3 +746,100 @@ StdioMcpClient	        Use MCP servers via stdio	                      Integrati
 AIAgent	                Use another agent as a tool	                    Multi-agent systems, specialized sub-agents
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Need for Evaluation
+
+We could try a few queries by hand and see what looks good. That's fine for a quick sanity check, but it doesn't scale, and it doesn't give us a number to compare. We need a systematic way 
+to tell whether one approach beats another. With evaluation, we can:
+a) Compare different search methods (minsearch vs vector search vs hybrid)
+b) Tune parameters (boost values, number of results, prompt templates)
+c) Compare different LLMs (gpt-5.4-mini vs others)
+d) Track improvements over time
+
+There are two types of evaluation:
+1) Offline evaluation: run the system on a test dataset and compute metrics - this is what we do before putting changes in front of users. It lets us compare search settings, prompts, or 
+models on the same dataset; for the offline evaluation, synthetic data is a good starting point when you don't have real user data. But generated questions can be too similar to the 
+original text, which inflates the metrics. As soon as you can, start collecting real user queries and use them to validate your evaluation framework. 
+2) Online evaluation: collect feedback from real users in production - it uses real traffic, feedback, logs, and dashboards to monitor quality
+
+Largely, there are three levels of evaluation:
+1) Search evaluation: does the search return the right documents?
+2) RAG evaluation: does the LLM generate good answers?
+3) Agent evaluation: does the agent use tools efficiently?
+
+Most of our time goes to search, and that's on purpose. Everything else depends on it: if retrieval brings back the wrong documents, no prompt or model can rescue the answer. So we test 
+search on its own first, then evaluate the full pipeline on top of it.
+1) Search Evaluation - we can use two metrics: Hit Rate and MRR (Mean Reciprocal Rank)
+A = the original answer in the FAQ
+Q* = a question generated from that answer by an LLM
+We send Q* through our search and check if the original document appears in the results. To evaluate search, we need a dataset of queries where we know which document is the correct answer.
+This is called ground truth (or gold standard) data. For each query in our ground truth dataset, we know which document in the knowledge base is relevant. When we run a search, we check 
+whether the results include the correct document.
+
+2) For RAG evaluation, we go one step further - we can use LLM-as-a-judge
+A = the original answer in the FAQ
+Q* = a question generated from that answer by an LLM
+A' = the answer produced by our RAG system when given Q*
+We compare A' with A to see if the system produced the right answer
+This is the A → Q* → A' pattern. We know the answer for each generated question because we created the question from that answer.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+There are several ways to get ground truth data:
+a) Human annotators look at documents and write queries (best quality, expensive)
+b) Collect real user queries and label them (requires a running system)
+c) Generate synthetic data with an LLM
+
+We don't have a production system yet, so we'll use an LLM to generate questions. Example, for each FAQ document, we ask the LLM to create 5 questions that this document would answer. 
+Then we know that for each generated question, the source document is the correct answer.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+What is the dfference between responses.create() and responses.parse() methods of OpenAI client?
+
+responses.create() and responses.parse() both generate responses from the model, but they differ in what they return and how they handle structured output.
+
+| Feature           | `responses.create()`                            | `responses.parse()`                                     |
+| ----------------- | ----------------------------------------------- | ------------------------------------------------------  |
+| Purpose           | General-purpose response generation             | Generate and automatically parse structured output      |
+| Return type       | `Response`                                      | `ParsedResponse[T]`                                     |
+| Structured output | You handle it yourself                          | SDK validates and converts it to a Pydantic model       |
+| Best for          | Chat, text generation, tool calling, multimodal | JSON/structured data extraction, expecting fixed schema |
+
+The OpenAI Python SDK introduced responses.parse() to make structured outputs easier to use by automatically generating the JSON schema from a Pydantic model and parsing the model's 
+response back into that class.
+
+Example:
+1) responses.create()
+
+response = client.responses.create(
+    model="gpt-40-mini",
+    input="List three programming languages."
+)
+print(response.output_text) # Output: 1. Python 2. Java 3. Rust
+
+If you want JSON, you need to instruct the model to produce JSON, optionally provide JSON schema and parse the JSON yourself - however, it is not robust as it doesn't guarantee that the
+output conforms to our schema before the application uses it.
+
+import json
+response = client.responses.create(...)
+data = json.loads(response.output_text)
+
+2) responses.parse()
+
+response = client.responses.parse(
+    model="gpt-4o-mini",
+    input="Generate five interview questions about Python.",
+    text_format=Questions
+)
+questions = response.output_parsed # returns <class '__main__.Questions'>
+print(questions.questions) # this doesn't need manual parsing JSON
+
+When we pass text_format=Questions, the Python SDK:
+1) Converts your Pydantic model into a JSON Schema
+2) Sends that schema to the model
+3) Validates the model's response
+4) Converts the JSON into a Questions instance automatically
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
