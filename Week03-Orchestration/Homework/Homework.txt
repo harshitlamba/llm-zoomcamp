@@ -1,0 +1,202 @@
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Question 1
+
+ChatGPT Kestra Flow YAML code:
+
+id: nyc_taxi_csv_to_bigquery
+namespace: company.team
+
+variables:
+  project_id: your-gcp-project
+  dataset: ny_taxi
+  table: yellow_tripdata_2024_01
+  bucket: your-gcs-bucket
+  region: US
+  csv_url: https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.csv
+
+tasks:
+  - id: download_csv
+    type: io.kestra.plugin.core.http.Download
+    uri: "{{ vars.csv_url }}"
+
+  - id: upload_to_gcs
+    type: io.kestra.plugin.gcp.gcs.Upload
+    from: "{{ outputs.download_csv.uri }}"
+    bucket: "{{ vars.bucket }}"
+    name: "{{ vars.table }}.csv"
+
+  - id: create_dataset
+    type: io.kestra.plugin.gcp.bigquery.CreateDataset
+    projectId: "{{ vars.project_id }}"
+    dataset: "{{ vars.dataset }}"
+    location: "{{ vars.region }}"
+    ifExists: SKIP
+
+  - id: load_csv_to_bigquery
+    type: io.kestra.plugin.gcp.bigquery.LoadFromGcs
+    projectId: "{{ vars.project_id }}"
+    dataset: "{{ vars.dataset }}"
+    table: "{{ vars.table }}"
+
+    from:
+      - "gs://{{ vars.bucket }}/{{ vars.table }}.csv"
+
+    format: CSV
+    autodetect: true
+    writeDisposition: WRITE_TRUNCATE
+    createDisposition: CREATE_IF_NEEDED
+    skipLeadingRows: 1
+
+AI Copilot Kestra Flow YAML code:
+
+id: hyena_846760
+namespace: company.team
+
+tasks:
+  - id: download_nyc_taxi_data
+    type: io.kestra.plugin.core.http.Download
+    uri: https://raw.githubusercontent.com/plotly/datasets/master/2011_february_nyc_taxi.csv
+    saveAs: nyc_taxi_data.csv
+  - id: load_to_bigquery
+    type: io.kestra.plugin.gcp.bigquery.Load
+    from: "{{ outputs.download_nyc_taxi_data.uri }}"
+    destinationTable: "your_project.your_dataset.nyc_taxi_data" # Replace with your BigQuery project, dataset, and table
+    format: CSV
+    autodetect: true
+    csvOptions:
+      fieldDelimiter: ","
+
+Observations:
+1) The code produced by AI Copilot is not necessarily superior. 
+    a) Example: the value for 'id' is appropriate to reflect objective in chatgpt code ('nyc_taxi_csv_to_bigquery') but random in Kestra AI Copilot ('hyena_846760'). It cannot be changed 
+    to an appropriate value even after trying to set it manually ('Read Only' error).
+    b) The chatgpt flow code uses variables - which is more desirable if we want to implement the best practices. Kestra AI Copilot uses hardcoded values in the code 
+    (eg. 'your_project.your_dataset.nyc_taxi_data'), which is not a best practice.
+    c) The correct data source domain is: https://d37ci6vzurychx.cloudfront.net/trip-data/
+    Chatgpt points to the correct data source, while Kestra Copilot AI points to a plotly github repository.
+2) Both the flow codes lack the 'serviceAccount' property to provide the GCP credentials to load the BigQuery table or upload the dataset to GCS.
+3) The code from Kestra AI Copilot assumes that we have a BigQuery table created. Code produced by ChatGPT is more explicit in BigQuery table creation/overwrite.
+
+Answer:
+The only possible reason the AI Copilot might generate a better Kestra flow is that "AI Copilot has access to current Kestra plugin documentation".
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Question 2
+
+zoomcamp.1_chat_without_rag output:
+
+Kestra 1.1 introduced several exciting new features and improvements. Here are at least 5 major features with brief descriptions:
+1. **Declarative Python API:**
+* **Description:** This was a significant addition, allowing users to define Kestra flows directly within Python scripts using a declarative, object-oriented API. Instead of writing YAML 
+files, developers could now leverage Python's full power for expressing flow logic, including loops, conditionals, and custom tasks, while still benefiting from Kestra's orchestration 
+capabilities. This greatly improved developer experience for Python users and enabled more complex, programmatic flow definitions.
+2. **Plugin System for Python:**
+* **Description:** Building upon the declarative Python API, Kestra 1.1 introduced the ability to create and use custom plugins directly from Python. This means users can define their own 
+custom tasks, triggers, or other Kestra components entirely in Python and easily integrate them into their flows. This vastly expanded Kestra's extensibility and made it much easier for 
+Python developers to contribute to and extend Kestra's ecosystem with their own business logic or integrations.
+3. **Flow-level Outputs:**
+* **Description:** Previously, outputs were primarily associated with individual tasks. With Kestra 1.1, users gained the ability to define and manage outputs at the entire flow level. 
+This allows for summarizing or aggregating results from various tasks within a flow and making them available as a single, consolidated output for subsequent flows or external systems. 
+This is particularly useful for complex workflows where the overall outcome needs to be easily accessible.
+4. **Integrated Kestra UI with Python API (Auto-generated UI for Python Flows):**
+* **Description:** A highly impactful feature was the seamless integration of the Python API with the Kestra UI. When you define a flow using the declarative Python API, Kestra 1.1 
+automatically generates and displays the corresponding flow definition in the Kestra UI, just as it would for a YAML-defined flow. This means users get the benefits of programmatic flow 
+definition without sacrificing the visual clarity, monitoring, and management capabilities offered by the Kestra UI.
+5. **New and Improved Task Libraries (e.g., File Management, new CLI commands):**
+* **Description:** Kestra 1.1 continued to expand its task library, making it more robust and versatile. While specific new tasks are too numerous to list individually, a key focus was 
+often on improving common operational tasks. This included enhancements to file management capabilities (e.g., more versatile file operations, better integration with external storage), 
+and new or improved CLI commands to streamline development and deployment workflows. These improvements made it easier to handle common data engineering and orchestration patterns directly 
+within Kestra.
+These features collectively made Kestra 1.1 a significant release, particularly enhancing the experience for Python developers and improving the overall extensibility and usability of the 
+platform.
+
+zoomcamp.2_chat_with_rag output:
+
+Kestra 1.1 introduced several major features. Here are at least 5 with brief descriptions:
+1. **New Filters**: The UI filters were completely redesigned to be more intuitive and powerful, offering explicit filter options, a single-click reset, the ability to save frequently used 
+filter combinations, and customizability for table columns.
+2. **No-Code Dashboard Editor**: This feature allows users to create and edit custom dashboards using a no-code, multi-panel editor, similar to the existing no-code flow editor. Users can 
+build data sources, visualizations, and charts without writing YAML.
+3. **Human Task**: (Enterprise Edition) This new task enables human-in-the-loop workflows, allowing executions to pause until manually approved by specific users or groups before proceeding.
+4. **Multi-Agent AI Systems**: AI agents can now use other AI agents as tools, facilitating sophisticated multi-agent orchestration where a primary agent can delegate subtasks to specialized 
+expert agents.
+5. **Fix with AI**: When tasks fail, Kestra 1.1 provides AI-powered suggestions to help diagnose and resolve issues, speeding up troubleshooting.
+6. **New MailReceivedTrigger and RealTimeTrigger**: These triggers allow workflows to be initiated based on incoming emails, supporting both batch and real-time processing for email-driven 
+automations.
+
+Answer:
+The non-RAG response about Kestra 1.1 features is best described as "vague, generic, or fabricated — the model guesses from training data".
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Question 3
+
+📊 Token Usage Summary:
+Multilingual Agent:
+- Input tokens: 282
+- Output tokens: 70
+- Total tokens: 352
+English Brevity Agent:
+- Input tokens: 85
+- Output tokens: 34
+- Total tokens: 119
+
+Answer:
+The approximate output token count for multilingual_agent ('short' summary) - "60-100 tokens"
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Question 4
+
+📊 Token Usage Summary:
+Multilingual Agent:
+- Input tokens: 282
+- Output tokens: 190
+- Total tokens: 472
+English Brevity Agent:
+- Input tokens: 205
+- Output tokens: 42
+- Total tokens: 247
+
+Answer:
+The 'long' summary uses roughly "2-5x times more" output tokens for the 'multilingual_agent' than the 'short' summary.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Question 5
+
+- id: english_brevity
+  type: io.kestra.plugin.ai.agent.AIAgent
+  prompt: |
+      Generate exactly 3 sentences English summary of the following:
+      "{{ outputs.multilingual_agent.textOutput }}"
+
+'english_brevity' output token count to the original 1-sentence version with 'summary_length = long':
+
+English Brevity Agent:
+- Input tokens: 205
+- Output tokens: 42
+- Total tokens: 247
+
+'english_brevity' output token count to the original 1-sentence version with 'summary_length = long':
+
+English Brevity Agent:
+- Input tokens: 201
+- Output tokens: 95
+- Total tokens: 296
+
+Answer:
+The 'english_brevity' output token count to the original 3-sentence version (summary_length = long) is roughly "2-4x times more" than those for original 1-sentence version 
+(summary_length = long).
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Question 6
+
+Answer:
+For production workflows requiring deterministic, repeatable results with strict compliance requirements (e.g., financial reporting, workflows in highly regulated industries) "use traditional 
+task-based workflows for predictability and auditability".
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
