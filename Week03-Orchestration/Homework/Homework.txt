@@ -180,7 +180,7 @@ English Brevity Agent:
 - Output tokens: 42
 - Total tokens: 247
 
-'english_brevity' output token count to the original 1-sentence version with 'summary_length = long':
+'english_brevity' output token count to the original 3-sentences version with 'summary_length = long':
 
 English Brevity Agent:
 - Input tokens: 201
