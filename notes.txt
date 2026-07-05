@@ -730,3 +730,19 @@ tools:
     # a Docker volume bind mount, mapping the flow's workingDir (Kestra's working directory for the current execution, where task outputs/files typically live) to /tmp inside the container
     binds: ["{{workingDir}}:/tmp"]
 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Agent Tools Available in Kestra:
+
+Tool	                                Purpose	                                      Example Use
+TavilyWebSearch	        Search the web for current information	        Market research, news monitoring
+GoogleCustomWebSearch	  Search with Google Custom Search API	          Google search
+CodeExecution	          Run code safely via Judge0	                    Math calculations, data validation
+KestraTask	            Execute any Kestra task	                        Run tasks based on 1000+ Kestra plugins
+KestraFlow	            Trigger other Kestra flows	                    Call other flows for modularity
+StreamableHttpMcpClient	Use MCP servers via HTTP/SSE	                  Connect to remote MCP servers
+DockerMcpClient	        Use MCP servers in Docker	                      MCP servers spun up on-demand via Docker
+StdioMcpClient	        Use MCP servers via stdio	                      Integration with external systems
+AIAgent	                Use another agent as a tool	                    Multi-agent systems, specialized sub-agents
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
