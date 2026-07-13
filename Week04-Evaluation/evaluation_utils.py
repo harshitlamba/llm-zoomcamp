@@ -114,20 +114,25 @@ class RAGWithUsage(RAGBase):
     def total_cost(self):
         return calc_total_price(self.usages)
 
-
+# run the function 'f' (generate_ground_truth) on every element in 'seq' (documents) using a thread or process pool
 def map_progress(pool, seq, f):
-    results = []
+    results = [] # list to store final results
 
-    with tqdm(total=len(seq)) as progress:
+    with tqdm(total=len(seq)) as progress: # progress bar that expects len(seq) total tasks
         futures = []
 
         for el in seq:
-            future = pool.submit(f, el)
+            future = pool.submit(f, el) # submit one job per document
+            # a callback is registered for notification; without callbacks, you'd have to repeatedly ask each future whether it's done (polling)
+            # it is placed before future.result() (before the task finishes), because otherwise the Future wouldn't know what to do when it completes
+            # example of polling:
+            # while not future.done():
+            #     time.sleep(0.1)
             future.add_done_callback(lambda p: progress.update())
             futures.append(future)
 
         for future in futures:
-            result = future.result()
+            result = future.result() # it does not start the task; it waits until the task is finished and then returns its result.
             results.append(result)
 
     return results
