@@ -843,3 +843,62 @@ When we pass text_format=Questions, the Python SDK:
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+A Future is just an object that represents an asynchronous computation. The computation starts when you submit it to an executor. Example: future = pool.submit(f, el)
+The executor schedules f(el) to be executed. A Future object is returned immediately. So, immediately after pool.submit(...), the task is either already running, waiting in the executor's 
+queue, or (if it finishes very quickly) already completed. The Future lets you monitor or retrieve the result of that task.
+
+If this is the function you want to execute:
+def work(x):
+    print(f"Starting {x}")
+    time.sleep(2)
+    print(f"Finished {x}")
+    return x * 2
+
+Suppose you have two workers:
+with ThreadPoolExecutor(max_workers=2) as pool:
+    f1 = pool.submit(work, 1)
+    f2 = pool.submit(work, 2)
+    f3 = pool.submit(work, 3)
+
+The timeline might look like:
+submit f1  --> worker 1 starts work(1)
+submit f2  --> worker 2 starts work(2)
+submit f3  --> queued (no worker available)
+
+work(1) finishes
+worker 1 starts work(3)
+
+work(2) finishes
+work(3) finishes
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Why not update the progress after result()?
+for future in futures:
+    result = future.result()
+    progress.update()
+    results.append(result)
+
+We can progress after the task completes - it's perfectly valid. However, the behavior is different. Suppose we have three tasks that we submitted in order A, B, C:
+Task	Duration
+A	    10 s
+B	    1 s
+C	    1 s
+
+With callbacks, the progress bar reflects actual completion:
+t = 0   submit A, B, C
+t = 1   B finishes  -> progress = 1
+t = 1   C finishes  -> progress = 2
+t = 10  A finishes  -> progress = 3
+
+However, if we update the progress after the task completion, the progress bar sits at 0% for 10 seconds, then suddenly jumps from 0 to 100%:
+wait for A... (10 seconds)
+progress = 1
+
+B was already done
+progress = 2
+
+C was already done
+progress = 3
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
