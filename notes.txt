@@ -978,4 +978,14 @@ can compensate for imperfect retrieval. It also depends on user tolerance for wr
 d) Look at the system holistically. A high MRR means the relevant document is near the top, which helps the LLM focus on the right context. A low MRR with a high hit rate means the 
 document is there, but buried under less relevant results.
 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+What is a reranker in search?
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Typically we wouldn't want to delegate the reranking to an LLM as it adds to latency - we can use other search functions to obtain better results at the top, or use ML to rerank the
+extracted documents. How?
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
