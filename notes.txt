@@ -902,3 +902,80 @@ C was already done
 progress = 3
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Hit Rate
+
+Hit Rate measures the fraction of queries where the correct document appears anywhere in the results. Example:
+example = [
+    [1, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0],
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0],
+]
+
+If a line contains 1, search found the correct document somewhere in the top 5 results. If the line contains only zeros, search did not find the correct document. 
+There are 14 hits. The example has 15 queries. The Hit Rate is:
+cnt = 0
+for line in example:
+    if 1 in line:
+        cnt = cnt + 1
+cnt / len(example)
+# 0.933
+
+Difference between Hit Rate and Recall@k:
+a) Hit Rate@k asks - Did the correct document appear anywhere in the top k results?
+b) Recall@k asks - What fraction of all relevant documents were retrieved in the top k?
+Here's how it works:
+a) For each query, you have a set of relevant documents (the ground truth) and the top k retrieved documents from your retrieval system
+b) Compute recall for that query: Recall@k = Total number of relevant documents / Number of relevant documents retrieved in top k
+c) Repeat this for every query in your evaluation set
+d) Average the Recall@k values across all queries: Average Recall@k = 1/N [(Sum i = 1 : N)	​Recall@k (i)], where N is the number of queries
+
+Example: You have three queries  
+Query	    Relevant docs	    Retrieved top-3	    Recall@3
+Q1	      {A, B, C}	        {A, D, B}	          2/3 = 0.67
+Q2	      {E}	              {F, G, E}	          1/1 = 1.00
+Q3	      {H, I}	          {J, K, H}	          1/2 = 0.50
+
+Average Recall@3 = (0.67+1.00+0.50) / 3
+
+In our example, each query has one correct document, so Recall@k reduces to a simple yes/no question - hence, Hit Rate and Recall@k mean the same thing.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Mean Reciprocal Rank (MRR)
+
+Hit Rate tells us if we found the right document, but not where it was. MRR also considers the position. For each query, the score is based on the rank of the first correct document. 
+Example:
+position 1 - score is 1.0
+position 2 - score is 0.5
+position 3 - score is 0.333
+not found - score is 0
+
+If this is the relevance list [0, 1, 0, 0], the score is 0.5 because the correct document is at position 2.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Interpreting the metrics
+
+a) Our faq ground truth assumes only one relevant document per query. In practice, other retrieved documents might also be relevant. A 50% hit rate does not mean that half the results 
+are useless. It means the document we generated the question from did not appear in the top results for half the queries. Other relevant documents may still be there.
+b) With synthetic data, the generated questions can be too close to the original FAQ text. This inflates hit rate and MRR. If you see numbers above 95%, treat them with caution and 
+check whether the questions are realistic enough.
+c) Good thresholds depend on your use case. A 50% hit rate is acceptable for some applications, while others need 90% or higher. The right number depends on how much the downstream LLM 
+can compensate for imperfect retrieval. It also depends on user tolerance for wrong answers.
+d) Look at the system holistically. A high MRR means the relevant document is near the top, which helps the LLM focus on the right context. A low MRR with a high hit rate means the 
+document is there, but buried under less relevant results.
+
+
