@@ -8,6 +8,9 @@ import sys
 def create_assistant(index, llm_client, model='gpt-5.4-mini'):
     return RAGBase(index=index, llm_client=llm_client, model=model)
 
+# 1) search the indexed faq data for the questions most relevant to the user's question
+# 2) build a prompt from that question plus the documents retrieved
+# 3) send it to the LLM, which gives us the answer
 if __name__=='__main__':
     load_dotenv()
     api_key = os.getenv('OPENAI_API_KEY')
