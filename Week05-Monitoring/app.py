@@ -13,3 +13,8 @@ if st.button(label='Ask'):
         answer = assistant.rag(query=user_input)
         st.success(body='Completed')
         st.write(answer)
+
+        st.write(f"Response time: {assistant.last_call.response_time:.2f}s")
+        st.write(f"Prompt tokens: {assistant.last_call.prompt_tokens}")
+        st.write(f"Completion tokens: {assistant.last_call.completion_tokens}")
+        st.write(f"Cost: ${assistant.last_call.cost:.4f}")

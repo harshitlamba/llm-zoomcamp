@@ -1,12 +1,14 @@
 from ingest import load_faq_data, build_index
-from rag_helper import RAGBase
+# from rag_helper import RAGBase
+from metrics import RAGWithMetrics
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
 import sys
 
 def create_assistant(index, llm_client, model='gpt-5.4-mini'):
-    return RAGBase(index=index, llm_client=llm_client, model=model)
+    # return RAGBase(index=index, llm_client=llm_client, model=model)
+    return RAGWithMetrics(index=index, llm_client=llm_client, model=model)
 
 # 1) search the indexed faq data for the questions most relevant to the user's question
 # 2) build a prompt from that question plus the documents retrieved
