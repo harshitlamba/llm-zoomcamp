@@ -1021,3 +1021,62 @@ explains its reasoning. Asking the judge to explain why it made a decision gener
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+What is the @dataclass used for? How is it different from a dictionary?
+
+@dataclass is a decorator that automatically generates boilerplate methods for a class — mainly __init__ (initialize a class object), __repr__ (print in the form of a string), 
+and __eq__ (equate two objects of the class) — based on the fields you declare. It's meant for classes that primarily hold data. Dictionaries can hold similar information, but they 
+behave differently. Example:
+
+# dataclass
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int
+
+p_obj = Point(1, 2)
+
+# dictionary
+p_dict = {"x": 1, "y": 2}
+
+1) Typos - p['xx'] results into runtime KeyError; p_obj.xx is caught by editor/type checker before running
+2) Structure - dictionary has no fixed shape, i.e., any key can be added/removed anytime; dataclass has fixed fields, defined once in the class. Example:
+p_dict = {"x": 1, "y": 2}
+p_dict["z"] = 100          # silently adds an unintended field
+3) Type hints - dictionary has no built-in type-hints; 'x: int' in dataclass documents and helps enforce expected types. Example:
+p_dict = {"x": 1, "y": 2}
+p_dict["y"] = "oops"       # silently changes type from int to str
+4) Methods - we can't easily attach custom behavior in dictionaries; we can add methods to dataclass just like any class. Example:
+@dataclass
+class Point:
+    x: int
+    y: int
+
+    def distance_from_origin(self):
+        return (self.x**2 + self.y**2) ** 0.5
+
+p = Point(3, 4)
+print(p.distance_from_origin())
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Why not just timestamp: datetime = datetime.now() instead of timestamp: datetime = field(default_factory=datetime.now)?
+
+@dataclass
+class Event:
+    timestamp: datetime = datetime.now()
+
+e1 = Event()
+# ... wait 5 seconds ...
+e2 = Event()
+
+print(e1.timestamp == e2.timestamp)  # True - both the objects yield the same timestamp
+The problem is datetime.now() runs once when the class is defined (at import time), not each time you create an instance. Every 'Event' you make afterward gets that same frozen timestamp 
+baked in as the default.
+
+field(default_factory=...) fixes it. "default_factory" takes a function (not a value) — here, datetime.now itself (no parentheses). The dataclass calls that function fresh, every time a 
+new instance is created without an explicit value.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
