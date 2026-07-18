@@ -11,7 +11,7 @@ def create_assistant(index, llm_client, model='gpt-5.4-mini'):
 # 1) search the indexed faq data for the questions most relevant to the user's question
 # 2) build a prompt from that question plus the documents retrieved
 # 3) send it to the LLM, which gives us the answer
-if __name__=='__main__':
+def setup():
     load_dotenv()
     api_key = os.getenv('OPENAI_API_KEY')
 
@@ -19,13 +19,17 @@ if __name__=='__main__':
     documents = load_faq_data()
     index = build_index(documents=documents)
 
-    assistant = create_assistant(index=index, llm_client=llm_client, model='gpt-4o-mini')
+    return [index, llm_client]
+
+if __name__=='__main__':
+    index, llm_client = setup()
     # set default value for query
     query = 'How do I join the course?'
     # allow the query value to be overridden by a command-line argument
     if len(sys.argv) > 1:
         query = sys.argv[1]
     
+    assistant = create_assistant(index=index, llm_client=llm_client, model='gpt-4o-mini')
     answer = assistant.rag(query)
     print(answer)
     
